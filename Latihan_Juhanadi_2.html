@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aplikasi POS Kasir & Inventory</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
+body{background:#f1f5f9;color:#1e293b;padding:22px}
+.container{max-width:1200px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-size:28px;margin-bottom:6px}.subtitle{color:#64748b}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+button{border:0;border-radius:7px;padding:10px 14px;cursor:pointer;font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+.nav-btn{background:#e2e8f0;color:#334155}.nav-btn.active{background:#2563eb;color:white}
+.btn-primary{background:#2563eb;color:white}.btn-secondary{background:#64748b;color:white}
+.btn-edit{background:#f59e0b;color:white}.btn-delete{background:#ef4444;color:white}
+.btn-success{background:#16a34a;color:white}.btn-light{background:#e2e8f0;color:#334155}
+button.small{padding:6px 9px;margin:2px}
+.dashboard{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.card,.panel{background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px #0000000a;margin-bottom:18px}
+.card p{color:#64748b;margin-bottom:8px}.card h2{color:#2563eb}
+.panel h3{margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.form-group label{display:block;font-size:14px;font-weight:bold;margin-bottom:7px}
+input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:7px;background:white;outline:none}
+input:focus,select:focus{border-color:#2563eb}
+form button{margin-top:15px}
+.search{max-width:360px;margin-bottom:14px}
+.table-wrapper{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #e2e8f0}
+th{background:#eff6ff;color:#1e40af}
+tr:hover{background:#f8fafc}
+.empty{text-align:center;color:#64748b;padding:25px}
+.pos-layout{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+.pos-row{display:grid;grid-template-columns:1fr 130px;gap:12px;align-items:end}
+.cart-table{min-width:540px}
+.total-box{background:#eff6ff;padding:16px;border-radius:9px;margin-top:15px}
+.total-line{display:flex;justify-content:space-between;gap:12px;margin:9px 0}
+.total-line.grand{font-size:22px;font-weight:bold;color:#1d4ed8;border-top:1px solid #bfdbfe;padding-top:12px}
+.payment-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}
+.change{font-size:20px;font-weight:bold;color:#15803d}
+.status{display:inline-block;padding:4px 8px;border-radius:20px;background:#dcfce7;color:#166534;font-size:12px}
+.notice{background:#fff7ed;color:#9a3412;padding:12px;border-radius:8px;margin-bottom:15px;font-size:14px}
+.hidden{display:none!important}
+@media(max-width:850px){.pos-layout{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body{padding:12px}.dashboard,.form-grid,.payment-grid{grid-template-columns:1fr}.pos-row{grid-template-columns:1fr}.card,.panel{padding:15px}h1{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div><h1>POS Kasir & Inventory</h1><p class="subtitle">Sistem persediaan dan transaksi penjualan sederhana</p></div>
+  <nav>
+    <button class="nav-btn active" data-page="kasir">Kasir / POS</button>
+    <button class="nav-btn" data-page="inventory">Inventory</button>
+    <button class="nav-btn" data-page="riwayat">Riwayat Transaksi</button>
+  </nav>
+</header>
+
+<section class="dashboard">
+  <div class="card"><p>Total Jenis Barang</p><h2 id="totalBarang">0</h2></div>
+  <div class="card"><p>Total Stok Barang</p><h2 id="totalStok">0</h2></div>
+  <div class="card"><p>Total Penjualan</p><h2 id="totalPenjualan">Rp 0</h2></div>
+</section>
+
+<section id="page-kasir">
+  <div class="pos-layout">
+    <div class="panel">
+      <h3>Pilih Barang</h3>
+      <div class="pos-row">
+        <div class="form-group"><label for="pilihBarang">Nama Barang</label><select id="pilihBarang"></select></div>
+        <div class="form-group"><label for="jumlahBeli">Jumlah</label><input type="number" id="jumlahBeli" min="1" step="1" value="1"></div>
+      </div>
+      <button class="btn-primary" id="btnTambahKeranjang">+ Tambahkan ke Keranjang</button>
+      <p class="subtitle" style="margin-top:12px;font-size:13px">Stok akan dikurangi setelah pembayaran berhasil.</p>
+    </div>
+    <div class="panel">
+      <h3>Ringkasan Pembayaran</h3>
+      <div class="total-box">
+        <div class="total-line"><span>Jumlah item</span><strong id="jumlahItem">0</strong></div>
+        <div class="total-line grand"><span>Total</span><span id="totalKasir">Rp 0</span></div>
+      </div>
+      <div class="payment-grid">
+        <div class="form-group"><label for="uangBayar">Uang Dibayar (Rp)</label><input type="number" id="uangBayar" min="0" step="1" placeholder="Masukkan uang pelanggan"></div>
+        <div class="form-group"><label>Kembalian</label><div class="change" id="kembalian">Rp 0</div></div>
+      </div>
+      <button class="btn-success" id="btnBayar" style="width:100%">Selesaikan Transaksi</button>
+      <button class="btn-secondary" id="btnKosongkan" style="width:100%">Kosongkan Keranjang</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>Keranjang Belanja</h3>
+    <div class="table-wrapper"><table class="cart-table">
+      <thead><tr><th>No.</th><th>Nama Barang</th><th>Harga</th><th>Qty</th><th>Subtotal</th><th>Aksi</th></tr></thead>
+      <tbody id="tabelKeranjang"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="page-inventory" class="hidden">
+  <div class="panel">
+    <h3 id="judulForm">Tambah Barang Baru</h3>
+    <form id="formBarang">
+      <input type="hidden" id="editId">
+      <div class="form-grid">
+        <div class="form-group"><label for="namaBarang">Nama Barang</label><input id="namaBarang" type="text" placeholder="Nama barang" required maxlength="100"></div>
+        <div class="form-group"><label for="hargaBarang">Harga Satuan (Rp)</label><input id="hargaBarang" type="number" min="1" step="1" placeholder="Contoh: 3600" required></div>
+        <div class="form-group"><label for="stokBarang">Jumlah Stok</label><input id="stokBarang" type="number" min="0" step="1" placeholder="Jumlah stok" required></div>
+      </div>
+      <button type="submit" class="btn-primary" id="btnSimpan">+ Simpan Barang</button>
+      <button type="button" class="btn-secondary hidden" id="btnBatal">Batal Edit</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h3>Daftar Inventory</h3>
+    <input type="text" class="search" id="pencarian" placeholder="Cari nama barang...">
+    <div class="table-wrapper"><table>
+      <thead><tr><th>No.</th><th>Nama Barang</th><th>Harga Satuan</th><th>Stok</th><th>Nilai Stok</th><th>Aksi</th></tr></thead>
+      <tbody id="tabelBarang"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="page-riwayat" class="hidden">
+  <div class="panel">
+    <h3>Riwayat Transaksi</h3>
+    <button class="btn-delete" id="btnHapusRiwayat" style="margin-bottom:15px">Hapus Riwayat</button>
+    <div class="table-wrapper"><table>
+      <thead><tr><th>No.</th><th>No. Transaksi</th><th>Tanggal</th><th>Item</th><th>Total</th><th>Bayar</th><th>Kembalian</th></tr></thead>
+      <tbody id="tabelRiwayat"></tbody>
+    </table></div>
+  </div>
+</section>
+</div>
+
+<script>
+"use strict";
+const KEY_INVENTORY = "inventory";
+const KEY_TRANSACTIONS = "posTransactions";
+const dataAwal = [
+  {id:1,nama:"Indomie Goreng",harga:3600,stok:50},
+  {id:2,nama:"Galon Le Minerale",harga:21000,stok:20},
+  {id:3,nama:"Gas LPG 3 Kg",harga:23000,stok:15}
+];
+let barang = bacaStorage(KEY_INVENTORY, dataAwal);
+let transaksi = bacaStorage(KEY_TRANSACTIONS, []);
+let keranjang = [];
+let idSelanjutnya = Math.max(0,...barang.map(x=>Number(x.id)||0))+1;
+
+function bacaStorage(key, fallback){
+  try{
+    const data=localStorage.getItem(key);
+    return data===null ? structuredClone(fallback) : JSON.parse(data);
+  }catch(e){return structuredClone(fallback);}
+}
+function rupiah(angka){
+  return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(angka||0);
+}
+function simpanInventory(){localStorage.setItem(KEY_INVENTORY,JSON.stringify(barang));}
+function simpanTransaksi(){localStorage.setItem(KEY_TRANSACTIONS,JSON.stringify(transaksi));}
+function escapeHTML(teks){
+  return String(teks).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+}
+function tampilkanBarang(){
+  const keyword=document.getElementById("pencarian").value.toLowerCase();
+  const hasil=barang.filter(x=>x.nama.toLowerCase().includes(keyword));
+  const tbody=document.getElementById("tabelBarang");
+  tbody.innerHTML="";
+  if(!hasil.length){tbody.innerHTML='<tr><td colspan="6" class="empty">Data barang tidak ditemukan.</td></tr>';}
+  hasil.forEach((item,i)=>{
+    tbody.insertAdjacentHTML("beforeend",`<tr>
+      <td>${i+1}</td><td>${escapeHTML(item.nama)}</td><td>${rupiah(item.harga)}</td>
+      <td>${item.stok}</td><td>${rupiah(item.harga*item.stok)}</td>
+      <td><button class="btn-edit small" onclick="editBarang(${item.id})">Edit</button>
+      <button class="btn-delete small" onclick="hapusBarang(${item.id})">Hapus</button></td></tr>`);
+  });
+  hitungDashboard();
+}
+function isiPilihanBarang(){
+  const select=document.getElementById("pilihBarang");
+  const tersedia=barang.filter(x=>x.stok>0);
+  select.innerHTML=tersedia.length ? '<option value="">-- Pilih barang --</option>' : '<option value="">Tidak ada stok tersedia</option>';
+  tersedia.forEach(x=>select.insertAdjacentHTML("beforeend",`<option value="${x.id}">${escapeHTML(x.nama)} — ${rupiah(x.harga)} (Stok: ${x.stok})</option>`));
+}
+function hitungDashboard(){
+  document.getElementById("totalBarang").textContent=barang.length;
+  document.getElementById("totalStok").textContent=barang.reduce((a,x)=>a+x.stok,0);
+  document.getElementById("totalPenjualan").textContent=rupiah(transaksi.reduce((a,x)=>a+x.total,0));
+}
+function hitungTotal(){
+  return keranjang.reduce((a,x)=>a+x.harga*x.qty,0);
+}
+function tampilkanKeranjang(){
+  const tbody=document.getElementById("tabelKeranjang");
+  tbody.innerHTML="";
+  if(!keranjang.length)tbody.innerHTML='<tr><td colspan="6" class="empty">Keranjang masih kosong. Silakan pilih barang.</td></tr>';
+  keranjang.forEach((x,i)=>{
+    tbody.insertAdjacentHTML("beforeend",`<tr><td>${i+1}</td><td>${escapeHTML(x.nama)}</td><td>${rupiah(x.harga)}</td>
+      <td><button class="btn-light small" onclick="ubahQty(${x.id},-1)">−</button> ${x.qty}
+      <button class="btn-light small" onclick="ubahQty(${x.id},1)">+</button></td>
+      <td>${rupiah(x.harga*x.qty)}</td><td><button class="btn-delete small" onclick="hapusKeranjang(${x.id})">Hapus</button></td></tr>`);
+  });
+  document.getElementById("jumlahItem").textContent=keranjang.reduce((a,x)=>a+x.qty,0);
+  document.getElementById("totalKasir").textContent=rupiah(hitungTotal());
+  hitungKembalian();
+}
+function tambahKeranjang(){
+  const id=Number(document.getElementById("pilihBarang").value);
+  const qty=Number(document.getElementById("jumlahBeli").value);
+  const item=barang.find(x=>x.id===id);
+  if(!item){alert("Silakan pilih barang terlebih dahulu.");return;}
+  if(!Number.isSafeInteger(qty)||qty<1){alert("Jumlah pembelian harus minimal 1.");return;}
+  const diKeranjang=keranjang.find(x=>x.id===id);
+  const jumlahBaru=(diKeranjang?diKeranjang.qty:0)+qty;
+  if(jumlahBaru>item.stok){alert("Jumlah melebihi stok tersedia. Stok saat ini: "+item.stok);return;}
+  if(diKeranjang)diKeranjang.qty=jumlahBaru;
+  else keranjang.push({id:item.id,nama:item.nama,harga:item.harga,qty:qty});
+  document.getElementById("jumlahBeli").value=1;
+  tampilkanKeranjang();
+}
+function ubahQty(id,perubahan){
+  const x=keranjang.find(a=>a.id===id),item=barang.find(a=>a.id===id);
+  if(!x||!item)return;
+  const qty=x.qty+perubahan;
+  if(qty<1){hapusKeranjang(id);return;}
+  if(qty>item.stok){alert("Stok tidak mencukupi.");return;}
+  x.qty=qty;tampilkanKeranjang();
+}
+function hapusKeranjang(id){keranjang=keranjang.filter(x=>x.id!==id);tampilkanKeranjang();}
+function kosongkanKeranjang(){
+  if(keranjang.length&&!confirm("Kosongkan semua barang di keranjang?"))return;
+  keranjang=[];document.getElementById("uangBayar").value="";tampilkanKeranjang();
+}
+function hitungKembalian(){
+  const bayar=Number(document.getElementById("uangBayar").value)||0;
+  const total=hitungTotal();
+  document.getElementById("kembalian").textContent=rupiah(Math.max(0,bayar-total));
+}
+function selesaikanTransaksi(){
+  if(!keranjang.length){alert("Keranjang masih kosong.");return;}
+  const total=hitungTotal(),bayar=Number(document.getElementById("uangBayar").value);
+  if(!Number.isSafeInteger(bayar)||bayar<total){alert("Uang pembayaran belum cukup.");return;}
+  // Validasi stok sekali lagi sebelum stok dikurangi.
+  for(const x of keranjang){
+    const item=barang.find(a=>a.id===x.id);
+    if(!item||item.stok<x.qty){alert("Stok "+x.nama+" tidak mencukupi. Periksa keranjang.");return;}
+  }
+  keranjang.forEach(x=>{const item=barang.find(a=>a.id===x.id);item.stok-=x.qty;});
+  const nomor="TRX-"+Date.now();
+  transaksi.unshift({nomor,tanggal:new Date().toLocaleString("id-ID"),items:keranjang.map(x=>({...x})),total,bayar,kembalian:bayar-total});
+  simpanInventory();simpanTransaksi();
+  alert("Transaksi berhasil!\nTotal: "+rupiah(total)+"\nKembalian: "+rupiah(bayar-total));
+  keranjang=[];document.getElementById("uangBayar").value="";
+  tampilkanKeranjang();tampilkanBarang();isiPilihanBarang();tampilkanRiwayat();
+}
+function editBarang(id){
+  const x=barang.find(a=>a.id===id);if(!x)return;
+  document.getElementById("editId").value=x.id;
+  document.getElementById("namaBarang").value=x.nama;
+  document.getElementById("hargaBarang").value=x.harga;
+  document.getElementById("stokBarang").value=x.stok;
+  document.getElementById("judulForm").textContent="Edit Data Barang";
+  document.getElementById("btnSimpan").textContent="Update Barang";
+  document.getElementById("btnBatal").classList.remove("hidden");
+  document.getElementById("namaBarang").focus();
+}
+function batalEdit(){
+  document.getElementById("formBarang").reset();document.getElementById("editId").value="";
+  document.getElementById("judulForm").textContent="Tambah Barang Baru";
+  document.getElementById("btnSimpan").textContent="+ Simpan Barang";
+  document.getElementById("btnBatal").classList.add("hidden");
+}
+function hapusBarang(id){
+  if(keranjang.some(x=>x.id===id)){alert("Barang sedang ada di keranjang. Hapus dari keranjang terlebih dahulu.");return;}
+  if(!confirm("Yakin ingin menghapus barang ini?"))return;
+  barang=barang.filter(x=>x.id!==id);simpanInventory();tampilkanBarang();isiPilihanBarang();
+  if(Number(document.getElementById("editId").value)===id)batalEdit();
+}
+document.getElementById("formBarang").addEventListener("submit",e=>{
+  e.preventDefault();
+  const id=document.getElementById("editId").value;
+  const nama=document.getElementById("namaBarang").value.trim();
+  const harga=Number(document.getElementById("hargaBarang").value);
+  const stok=Number(document.getElementById("stokBarang").value);
+  if(!nama||!Number.isSafeInteger(harga)||harga<1||!Number.isSafeInteger(stok)||stok<0){alert("Periksa nama, harga, dan stok barang.");return;}
+  if(id){
+    const i=barang.findIndex(x=>x.id===Number(id));if(i<0)return;
+    barang[i]={...barang[i],nama,harga,stok};
+    // Update nama/harga pada item keranjang, tanpa mengubah jumlah.
+    keranjang.forEach(x=>{if(x.id===Number(id)){x.nama=nama;x.harga=harga;}});
+    alert("Data barang berhasil diperbarui.");
+  }else{
+    barang.push({id:idSelanjutnya++,nama,harga,stok});alert("Barang berhasil ditambahkan.");
+  }
+  simpanInventory();batalEdit();tampilkanBarang();isiPilihanBarang();tampilkanKeranjang();
+});
+function tampilkanRiwayat(){
+  const tbody=document.getElementById("tabelRiwayat");tbody.innerHTML="";
+  if(!transaksi.length){tbody.innerHTML='<tr><td colspan="7" class="empty">Belum ada transaksi.</td></tr>';return;}
+  transaksi.forEach((x,i)=>{
+    const itemCount=x.items.reduce((a,b)=>a+b.qty,0);
+    tbody.insertAdjacentHTML("beforeend",`<tr><td>${i+1}</td><td>${escapeHTML(x.nomor)}</td><td>${escapeHTML(x.tanggal)}</td>
+      <td>${itemCount}</td><td>${rupiah(x.total)}</td><td>${rupiah(x.bayar)}</td><td>${rupiah(x.kembalian)}</td></tr>`);
+  });
+}
+document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>{
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b===btn));
+  ["kasir","inventory","riwayat"].forEach(p=>document.getElementById("page-"+p).classList.toggle("hidden",p!==btn.dataset.page));
+}));
+document.getElementById("btnTambahKeranjang").addEventListener("click",tambahKeranjang);
+document.getElementById("btnBayar").addEventListener("click",selesaikanTransaksi);
+document.getElementById("btnKosongkan").addEventListener("click",kosongkanKeranjang);
+document.getElementById("uangBayar").addEventListener("input",hitungKembalian);
+document.getElementById("pencarian").addEventListener("input",tampilkanBarang);
+document.getElementById("btnBatal").addEventListener("click",batalEdit);
+document.getElementById("btnHapusRiwayat").addEventListener("click",()=>{
+  if(!transaksi.length)return;
+  if(confirm("Hapus seluruh riwayat transaksi? Stok barang tidak akan berubah.")){
+    transaksi=[];simpanTransaksi();tampilkanRiwayat();hitungDashboard();
+  }
+});
+simpanInventory();tampilkanBarang();isiPilihanBarang();tampilkanKeranjang();tampilkanRiwayat();
+</script>
+</body>
+</html>
